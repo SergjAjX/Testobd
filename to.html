@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Renault Logan · Журнал ТО</title>
+<link rel="prefetch" href="index.html">
+<script src="profiles.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: system-ui, -apple-system, sans-serif; background:#111; color:#eee;
+         margin:0 auto; padding:16px; max-width:1100px; }
+  h1 { font-size:20px; margin:8px 0 16px; }
+  h2 { font-size:14px; color:#aaa; margin:20px 0 10px; text-transform:uppercase;
+       letter-spacing:.5px; font-weight:600; }
+  .nav { display:flex; gap:4px; margin-bottom:16px; border-bottom:1px solid #333; }
+  .nav a { padding:10px 16px; color:#888; text-decoration:none;
+           border-bottom:2px solid transparent; font-weight:600; font-size:14px; }
+  .nav a.active { color:#2d7; border-color:#2d7; }
+  .nav a:hover { color:#eee; }
+  button { padding:9px 14px; font-size:14px; border-radius:8px; border:0;
+           background:#2d7; color:#000; cursor:pointer; font-weight:600; margin:2px; }
+  button:disabled { background:#444; color:#888; cursor:default; }
+  button.danger { background:#e55; }
+  button.neutral { background:#4a90e2; color:#fff; }
+  button.ghost { background:#222; color:#ccc; border:1px solid #444; }
+  button.small { padding:5px 9px; font-size:12px; }
+
+  .profile-bar { display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+                 background:linear-gradient(135deg,#1a2e1a,#1c1c1c);
+                 border:1px solid #2d7; border-radius:10px;
+                 padding:14px 16px; margin-bottom:16px; }
+  .profile-bar .icon { font-size:28px; }
+  .profile-bar .info { flex:1; min-width:200px; }
+  .profile-bar .pname { font-weight:700; font-size:16px; margin-bottom:2px; }
+  .profile-bar .pmeta { font-size:12px; color:#888; font-family:ui-monospace, monospace; }
+  .profile-bar .pmeta strong { color:#4eea8f; }
+  .profile-bar .actions { display:flex; gap:6px; flex-wrap:wrap; }
+  .profile-bar select { padding:8px 10px; font-size:13px; background:#222;
+                        border:1px solid #444; border-radius:6px; color:#eee;
+                        min-width:180px; max-width:260px; }
+
+  .mileage-block { display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+                   background:#1c1c1c; border:1px solid #333; border-radius:10px;
+                   padding:16px; margin-bottom:16px; }
+  .mileage-value { font-size:36px; font-weight:700; color:#2d7; font-variant-numeric:tabular-nums; }
+  .mileage-value .unit { font-size:16px; color:#888; margin-left:4px; font-weight:400; }
+  .mileage-meta { flex:1; font-size:12px; color:#888; }
+  .mileage-meta strong { color:#eee; display:block; margin-bottom:4px; font-size:13px; }
+
+  .engine-block { display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+                  background:#1c1c1c; border:1px solid #333; border-radius:10px;
+                  padding:14px 16px; margin-bottom:16px; }
+  .engine-block label { flex-direction:column; display:flex; gap:4px;
+                        font-size:12px; color:#888; flex:1; min-width:200px; }
+  .engine-meta { flex:1; font-size:13px; color:#aaa; min-width:180px; }
+  .engine-meta.ok { color:#4eea8f; }
+  .item-note { font-size:11px; color:#fa0; margin-top:2px; font-style:italic; }
+
+  .alert-banner { background:#2a1d00; border:1px solid #fa0; color:#ffd76a;
+                  padding:12px 16px; border-radius:10px; margin-bottom:16px; font-size:13px; }
+  .alert-banner.danger { background:#2a0a0a; border-color:#e55; color:#ffa0a0; }
+  .alert-banner strong { display:block; margin-bottom:6px; }
+  .alert-banner ul { margin:4px 0 0; padding-left:20px; }
+
+  .category-header { display:flex; align-items:center; gap:8px;
+                     margin:20px 0 8px; padding:6px 4px;
+                     border-bottom:1px solid #333;
+                     font-size:13px; font-weight:700; color:#aaa;
+                     text-transform:uppercase; letter-spacing:.5px; }
+
+  .item { background:#1c1c1c; border:1px solid #333; border-radius:10px;
+          padding:14px 16px; margin-bottom:8px;
+          display:grid; grid-template-columns: 1fr auto; gap:12px; align-items:center; }
+  .item.warn   { border-color:#fa0; background:rgba(250,180,0,.05); }
+  .item.danger { border-color:#e55; background:rgba(229,85,85,.08); }
+  .item-main { min-width:0; }
+  .item-name { font-weight:600; font-size:15px; margin-bottom:4px; }
+  .item-info { font-size:12px; color:#888; line-height:1.6; }
+  .item-info .remain { color:#2d7; font-weight:600; }
+  .item.warn .item-info .remain { color:#fa0; }
+  .item.danger .item-info .remain { color:#f55; }
+  .progress { height:6px; background:#2a2a2a; border-radius:3px; overflow:hidden; margin-top:8px; }
+  .progress-fill { height:100%; background:#2d7; transition:width .4s; }
+  .item.warn .progress-fill { background:#fa0; }
+  .item.danger .progress-fill { background:#e55; }
+  .item-actions { display:flex; flex-direction:column; gap:4px; }
+  .item-actions button { padding:6px 10px; font-size:12px; white-space:nowrap; }
+
+  .form-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+              gap:10px; margin-bottom:10px; }
+  label { display:flex; flex-direction:column; gap:4px; font-size:12px; color:#888; }
+  input, select, textarea { padding:8px 10px; font-size:14px; background:#1c1c1c;
+                            border:1px solid #444; border-radius:6px; color:#eee;
+                            font-family:inherit; width:100%; }
+  input:focus, select:focus, textarea:focus { outline:none; border-color:#2d7; }
+  textarea { resize:vertical; min-height:56px; }
+
+  table { width:100%; border-collapse:collapse; background:#1c1c1c;
+          border-radius:10px; overflow:hidden; font-size:13px; }
+  th, td { padding:10px 12px; text-align:left; border-bottom:1px solid #2a2a2a; }
+  th { background:#222; color:#888; font-size:11px; text-transform:uppercase;
+       letter-spacing:.5px; font-weight:600; }
+  tr:last-child td { border-bottom:none; }
+  tr:hover td { background:#222; }
+  td.num { font-variant-numeric:tabular-nums; }
+  td.actions { text-align:right; }
+  .empty { color:#666; padding:20px; text-align:center; }
+  .toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px; }
+  #journalSummary { text-align:right; margin-bottom:8px; color:#888; font-size:13px; }
+  #journalSummary strong { color:#eee; }
+  #saveStatus { font-size:12px; color:#666; margin-left:8px; }
+
+  .no-profile { text-align:center; padding:60px 20px;
+                background:#1c1c1c; border:1px solid #333; border-radius:12px;
+                max-width:500px; margin:60px auto; }
+  .no-profile h2 { color:#eee; margin-bottom:12px; }
+  .no-profile p { color:#888; font-size:14px; margin-bottom:20px; line-height:1.6; }
+  .no-profile .form-row { text-align:left; }
+  .no-profile button { padding:11px 20px; font-size:15px; }
+
+  @media print {
+    body { background:#fff; color:#000; padding:0; max-width:none; }
+    .nav, .toolbar, button, .item-actions, .profile-bar, .engine-block,
+    .no-profile { display:none !important; }
+    .item, table, .mileage-block { background:#fff; border:1px solid #ccc; }
+    th { background:#eee; color:#000; }
+    .item-name, .mileage-value, h1, h2, .category-header { color:#000; }
+    .item-info, .mileage-meta, #journalSummary { color:#555; }
+    .progress { background:#eee; }
+    .progress-fill { background:#000 !important; }
+    .item.warn, .item.danger { border-color:#999; background:#fff; }
+    .alert-banner { background:#fff; border:1px solid #000; color:#000; }
+  }
+</style>
+</head>
+<body>
+    
+ <div id="pageLoader" style="position:fixed;inset:0;background:#111;
+     display:flex;align-items:center;justify-content:center;z-index:9999;
+     color:#2d7;font-size:16px;font-family:system-ui;">
+  ⏳ Загрузка…
+</div>
+
+<nav class="nav">
+  <a href="index.html">🔧 Диагностика</a>
+  <a href="to.html" class="active">📋 Журнал ТО</a>
+</nav>
+
+<h1>Журнал технического обслуживания · Renault Logan</h1>
+
+<!-- ===== Профиль ===== -->
+<div id="profileBar"></div>
+
+<!-- ===== Нет профиля ===== -->
+<div id="noProfile" class="no-profile" style="display:none">
+  <h2>Нет активного профиля</h2>
+  <p>Создайте профиль автомобиля — данные ТО будут храниться отдельно
+     для каждой машины. Или подключитесь на вкладке «Диагностика» —
+     там профиль создастся автоматически по VIN.</p>
+  <div class="form-row">
+    <label>Название профиля
+      <input type="text" id="newProfileName" placeholder="Мой Logan / Логан жены">
+    </label>
+    <label>VIN (опционально)
+      <input type="text" id="newProfileVin" placeholder="VF1LSR..." maxlength="17">
+    </label>
+    <label>Гос. номер (опционально)
+      <input type="text" id="newProfilePlate" placeholder="А123БВ">
+    </label>
+  </div>
+  <button id="btnCreateProfile">+ Создать профиль</button>
+</div>
+
+<!-- ===== Контент профиля ===== -->
+<div id="profileContent" style="display:none">
+
+  <!-- Пробег -->
+  <div class="mileage-block">
+    <div class="mileage-value"><span id="mileageValue">—</span><span class="unit">км</span></div>
+    <div class="mileage-meta">
+      <strong id="mileageSource">Источник: ручной ввод</strong>
+      <span id="mileageUpdated">—</span>
+    </div>
+    <div>
+      <button id="btnManualMileage" class="neutral">✎ Ввести вручную</button>
+      <button id="btnSyncMileage" class="ghost">↻ Обновить с OBD</button>
+    </div>
+  </div>
+
+  <!-- Двигатель -->
+  <div class="engine-block">
+    <label>🚗 Двигатель
+      <select id="engineSelect">
+        <option value="">— выберите —</option>
+        <option value="K7J">1.4 8V (K7J) · 75 л.с. · 2004–2012</option>
+        <option value="K7M">1.6 8V (K7M) · 87 л.с. · 2004–2015</option>
+        <option value="K4M">1.6 16V (K4M) · 105 л.с. · 2010+</option>
+        <option value="D4F">1.2 16V (D4F) · 75 л.с. · 2014+</option>
+        <option value="K9K">1.5 dCi дизель (K9K) · 84–90 л.с.</option>
+      </select>
+    </label>
+    <div class="engine-meta" id="engineMeta">Двигатель не выбран</div>
+    <button id="btnResetIntervals" class="ghost small" disabled>↻ Интервалы</button>
+  </div>
+
+  <div id="backupWarning" class="alert-banner" style="display:none"></div>
+  <div id="alerts"></div>
+
+  <h2>Регламент обслуживания</h2>
+  <div class="toolbar">
+    <button id="btnAddItem" class="ghost small">+ Добавить позицию</button>
+  </div>
+  <div id="itemsList"></div>
+
+  <h2>Добавить запись в журнал</h2>
+  <div class="item">
+    <div class="item-main">
+      <div class="form-row">
+        <label>Дата <input type="date" id="recDate"></label>
+        <label>Пробег, км <input type="number" id="recKm" min="0" step="1"></label>
+        <label>Позиция <select id="recItem"></select></label>
+        <label>Стоимость, ₽ <input type="number" id="recCost" min="0" step="1" placeholder="опц."></label>
+      </div>
+      <label>Заметка
+        <textarea id="recNote" placeholder="Масло Elf 5W-40, фильтр Mann..."></textarea>
+      </label>
+    </div>
+    <div class="item-actions">
+      <button id="btnAddRecord">✓ Записать</button>
+    </div>
+  </div>
+
+  <h2>История обслуживания</h2>
+  <div class="toolbar">
+    <button id="btnExport" class="neutral">💾 Экспорт (JSON)</button>
+    <button id="btnImport" class="ghost">📂 Импорт (JSON)</button>
+    <button id="btnRestoreBackup" class="ghost">↶ Резерв</button>
+    <button id="btnPrint" class="ghost">🖨 Печать</button>
+    <button id="btnClearAll" class="danger small">🗑 Сбросить всё</button>
+    <input type="file" id="fileInput" accept=".json" style="display:none">
+    <span id="saveStatus"></span>
+  </div>
+  <div id="journalSummary"></div>
+  <table>
+    <thead><tr>
+      <th>Дата</th><th>Пробег</th><th>Позиция</th><th>Заметка</th><th>₽</th><th></th>
+    </tr></thead>
+    <tbody id="journalBody"></tbody>
+  </table>
+</div>
+
+<script>
+    
+    window.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('pageLoader').style.display = 'none';
+});
+
+// Показать оверлей при клике на внутренние ссылки
+document.addEventListener('click', e => {
+  const a = e.target.closest('a[href]');
+  if (!a) return;
+  const href = a.getAttribute('href');
+  if (!href || href.startsWith('#') || href.startsWith('http')) return;
+  const current = location.pathname.split('/').pop() || 'index.html';
+  if (href === current) return;
+  document.getElementById('pageLoader').style.display = 'flex';
+});
+/* ============================================================
+   Константы
+   ============================================================ */
+const EXPORT_KEY = 'obd_maintenance_last_export';
+
+const DEFAULT_ITEMS = [
+  { id:'oil', category:'Двигатель', name:'Моторное масло', intervalKm:15000, intervalMonths:12 },
+  { id:'oilFilter', category:'Двигатель', name:'Масляный фильтр', intervalKm:15000, intervalMonths:12 },
+  { id:'airFilter', category:'Двигатель', name:'Воздушный фильтр ДВС', intervalKm:30000, intervalMonths:24 },
+  { id:'cabinFilter', category:'Двигатель', name:'Салонный фильтр', intervalKm:15000, intervalMonths:12 },
+  { id:'fuelFilter', category:'Двигатель', name:'Топливный фильтр', intervalKm:120000, intervalMonths:null },
+  { id:'spark', category:'Двигатель', name:'Свечи зажигания', intervalKm:30000, intervalMonths:36 },
+  { id:'timingBelt', category:'Двигатель', name:'Ремень ГРМ + ролики', intervalKm:60000, intervalMonths:60 },
+  { id:'serpBelt', category:'Двигатель', name:'Ремень навесного', intervalKm:60000, intervalMonths:60 },
+  { id:'valveCover', category:'Двигатель', name:'Прокладка клапанной крышки', intervalKm:90000, intervalMonths:72 },
+  { id:'oxygen', category:'Двигатель', name:'Датчик кислорода (лямбда)', intervalKm:100000, intervalMonths:null },
+  { id:'coolant', category:'Охлаждение', name:'Антифриз', intervalKm:90000, intervalMonths:60 },
+  { id:'thermostat', category:'Охлаждение', name:'Термостат', intervalKm:120000, intervalMonths:null },
+  { id:'waterPump', category:'Охлаждение', name:'Помпа (водяной насос)', intervalKm:90000, intervalMonths:60 },
+  { id:'coolHoses', category:'Охлаждение', name:'Патрубки охлаждения', intervalKm:100000, intervalMonths:84 },
+  { id:'brakeFluid', category:'Тормоза', name:'Тормозная жидкость', intervalKm:60000, intervalMonths:24 },
+  { id:'padsFront', category:'Тормоза', name:'Колодки передние', intervalKm:35000, intervalMonths:null },
+  { id:'padsRear', category:'Тормоза', name:'Колодки задние (барабаны)', intervalKm:80000, intervalMonths:null },
+  { id:'discsFront', category:'Тормоза', name:'Тормозные диски передние', intervalKm:70000, intervalMonths:null },
+  { id:'drumsRear', category:'Тормоза', name:'Тормозные барабаны задние', intervalKm:120000, intervalMonths:null },
+  { id:'brakeHoses', category:'Тормоза', name:'Тормозные шланги', intervalKm:100000, intervalMonths:84 },
+  { id:'shockFront', category:'Подвеска передняя', name:'Амортизаторы передние (пара)', intervalKm:70000, intervalMonths:null },
+  { id:'shockMountF', category:'Подвеска передняя', name:'Опоры передних амортизаторов', intervalKm:90000, intervalMonths:null },
+  { id:'springFront', category:'Подвеска передняя', name:'Пружины передние', intervalKm:120000, intervalMonths:null },
+  { id:'ballJoint', category:'Подвеска передняя', name:'Шаровые опоры', intervalKm:70000, intervalMonths:null },
+  { id:'controlArmBush', category:'Подвеска передняя', name:'Сайлентблоки передних рычагов', intervalKm:80000, intervalMonths:null },
+  { id:'stabLinkF', category:'Подвеска передняя', name:'Стойки стабилизатора передние', intervalKm:40000, intervalMonths:null },
+  { id:'stabBushF', category:'Подвеска передняя', name:'Втулки стабилизатора передние', intervalKm:50000, intervalMonths:null },
+  { id:'wheelBearF', category:'Подвеска передняя', name:'Ступичные подшипники передние', intervalKm:100000, intervalMonths:null },
+  { id:'cvJoint', category:'Подвеска передняя', name:'ШРУСы (гранаты)', intervalKm:120000, intervalMonths:null },
+  { id:'cvBoot', category:'Подвеска передняя', name:'Пыльники ШРУСов', intervalKm:60000, intervalMonths:null },
+  { id:'shockRear', category:'Подвеска задняя', name:'Амортизаторы задние (пара)', intervalKm:55000, intervalMonths:null },
+  { id:'shockMountR', category:'Подвеска задняя', name:'Опоры задних амортизаторов', intervalKm:55000, intervalMonths:null },
+  { id:'springRear', category:'Подвеска задняя', name:'Пружины задние', intervalKm:120000, intervalMonths:null },
+  { id:'beamBush', category:'Подвеска задняя', name:'Сайлентблоки задней балки', intervalKm:100000, intervalMonths:null },
+  { id:'wheelBearR', category:'Подвеска задняя', name:'Ступичные подшипники задние', intervalKm:120000, intervalMonths:null },
+  { id:'tieRodEnd', category:'Рулевое', name:'Наконечники рулевых тяг', intervalKm:60000, intervalMonths:null },
+  { id:'tieRod', category:'Рулевое', name:'Рулевые тяги', intervalKm:100000, intervalMonths:null },
+  { id:'tieRodBoot', category:'Рулевое', name:'Пыльники рулевых тяг', intervalKm:80000, intervalMonths:null },
+  { id:'pwrFluid', category:'Рулевое', name:'Жидкость ГУР', intervalKm:100000, intervalMonths:60 },
+  { id:'gearbox', category:'Трансмиссия', name:'Масло МКПП', intervalKm:90000, intervalMonths:60 },
+  { id:'clutch', category:'Трансмиссия', name:'Сцепление (диск + корзина)', intervalKm:120000, intervalMonths:null },
+  { id:'battery', category:'Электрика', name:'Аккумулятор', intervalKm:null, intervalMonths:48 },
+  { id:'wipers', category:'Электрика', name:'Щётки стеклоочистителя', intervalKm:null, intervalMonths:12 },
+  { id:'headlightBulb', category:'Электрика', name:'Лампы (проверка)', intervalKm:null, intervalMonths:12 },
+];
+
+const ENGINES = {
+  K7J: { name:'1.4 8V (K7J)', years:'2004–2012', power:'75 л.с.', timing:'Ремень ГРМ · 60 тыс. км',
+    overrides: { oil:{intervalKm:15000,intervalMonths:12}, airFilter:{intervalKm:30000,intervalMonths:24},
+      spark:{intervalKm:30000,intervalMonths:36}, timingBelt:{intervalKm:60000,intervalMonths:60},
+      waterPump:{intervalKm:60000,intervalMonths:60}, serpBelt:{intervalKm:60000,intervalMonths:60} } },
+  K7M: { name:'1.6 8V (K7M)', years:'2004–2015', power:'87 л.с.', timing:'Ремень ГРМ · 60 тыс. км',
+    overrides: { oil:{intervalKm:15000,intervalMonths:12}, airFilter:{intervalKm:30000,intervalMonths:24},
+      spark:{intervalKm:30000,intervalMonths:36}, timingBelt:{intervalKm:60000,intervalMonths:60},
+      waterPump:{intervalKm:90000,intervalMonths:60}, serpBelt:{intervalKm:60000,intervalMonths:60} } },
+  K4M: { name:'1.6 16V (K4M)', years:'2010+', power:'105 л.с.', timing:'Ремень ГРМ · 90 тыс. км (реком.)',
+    overrides: { oil:{intervalKm:15000,intervalMonths:12}, airFilter:{intervalKm:30000,intervalMonths:24},
+      spark:{intervalKm:60000,intervalMonths:60}, timingBelt:{intervalKm:90000,intervalMonths:60},
+      waterPump:{intervalKm:120000,intervalMonths:null}, serpBelt:{intervalKm:90000,intervalMonths:72} } },
+  D4F: { name:'1.2 16V (D4F)', years:'2014+', power:'75 л.с.', timing:'Цепь ГРМ · по состоянию',
+    overrides: { oil:{intervalKm:15000,intervalMonths:12}, airFilter:{intervalKm:30000,intervalMonths:24},
+      spark:{intervalKm:60000,intervalMonths:60},
+      timingBelt:{intervalKm:null,intervalMonths:null,note:'Цепь ГРМ — проверка натяжителя'},
+      waterPump:{intervalKm:120000,intervalMonths:null}, serpBelt:{intervalKm:90000,intervalMonths:72} } },
+  K9K: { name:'1.5 dCi дизель (K9K)', years:'2005+', power:'84–90 л.с.', timing:'Ремень ГРМ · 60 тыс. км',
+    overrides: { oil:{intervalKm:10000,intervalMonths:12}, airFilter:{intervalKm:30000,intervalMonths:24},
+      spark:{intervalKm:null,intervalMonths:null,note:'Свечи накаливания — проверка 60 тыс.'},
+      timingBelt:{intervalKm:60000,intervalMonths:60}, fuelFilter:{intervalKm:30000,intervalMonths:24},
+      waterPump:{intervalKm:90000,intervalMonths:60}, serpBelt:{intervalKm:60000,intervalMonths:60} } },
+};
+
+const $ = id => document.getElementById(id);
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+const escapeHtml = s => String(s ?? '').replace(/[&<>"']/g, c =>
+  ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]);
+
+/* ============================================================
+   State = активный профиль
+   ============================================================ */
+let state = null;
+
+function loadActiveState() {
+  const p = Profiles.active();
+  if (!p) return null;
+
+  if (!p.items || !p.items.length) {
+    p.items = DEFAULT_ITEMS.map(it => ({ ...it, lastKm: null, lastDate: null }));
+  } else {
+    // миграция: досоздать отсутствующие позиции
+    const existing = new Set(p.items.map(i => i.id));
+    let added = 0;
+    DEFAULT_ITEMS.forEach(def => {
+      if (!existing.has(def.id)) { p.items.push({ ...def, lastKm: null, lastDate: null }); added++; }
+    });
+    if (added) console.log('Миграция профиля: +' + added + ' позиций');
+  }
+  if (!p.journal) p.journal = [];
+
+  Profiles.update(p.id, { items: p.items, journal: p.journal });
+  return p;
+}
+
+function save() {
+  if (!state) return;
+  try {
+    Profiles.update(state.id, {
+      mileage: state.mileage, mileageSource: state.mileageSource,
+      mileageUpdated: state.mileageUpdated, engine: state.engine,
+      items: state.items, journal: state.journal,
+    });
+    $('saveStatus').textContent = '✓ ' + new Date().toLocaleTimeString('ru-RU');
+  } catch (e) {
+    console.error(e);
+    alert('Не удалось сохранить. Сделайте экспорт!');
+  }
+}
+
+/* ============================================================
+   Профиль — бар
+   ============================================================ */
+function renderProfileBar() {
+  const bar = $('profileBar');
+  const active = Profiles.active();
+  const all = Profiles.all();
+
+  if (!active) {
+    bar.innerHTML = '';
+    $('noProfile').style.display = 'block';
+    $('profileContent').style.display = 'none';
+    return;
+  }
+  $('noProfile').style.display = 'none';
+  $('profileContent').style.display = 'block';
+
+  const options = all.map(p =>
+    `<option value="${p.id}" ${p.id === active.id ? 'selected' : ''}>${escapeHtml(Profiles.label(p))}</option>`
+  ).join('');
+
+  const vinLine = active.vin
+    ? `<div class="pmeta">VIN: <strong>${escapeHtml(active.vin)}</strong></div>`
+    : `<div class="pmeta" style="color:#fa0">VIN не указан</div>`;
+
+  bar.innerHTML = `
+    <div class="profile-bar">
+      <span class="icon">🚗</span>
+      <div class="info">
+        <div class="pname">${escapeHtml(active.name || 'Без имени')}</div>
+        ${vinLine}
+        ${active.plate ? `<div class="pmeta">Гос.номер: <strong>${escapeHtml(active.plate)}</strong></div>` : ''}
+      </div>
+      <div class="actions">
+        <select id="profileSwitcher">${options}</select>
+        <button class="ghost small" onclick="createNewProfile()">+ Новый</button>
+        <button class="ghost small" onclick="editCurrentProfile()">✎</button>
+        <button class="ghost small" onclick="deleteCurrentProfile()" style="color:#f88">✕</button>
+      </div>
+    </div>
+  `;
+
+  $('profileSwitcher').addEventListener('change', e => {
+    const id = e.target.value;
+    if (!confirm('Переключиться на другой профиль?\nНесохранённые изменения текущего будут записаны автоматически.')) {
+      e.target.value = active.id;
+      return;
+    }
+    save();
+    Profiles.setActive(id);
+    state = loadActiveState();
+    renderAll();
+  });
+}
+
+window.createNewProfile = function() {
+  const name = prompt('Название профиля (например, "Логан жены"):', '');
+  if (name === null || !name.trim()) return;
+  const vin = prompt('VIN (опционально, 17 символов):', '');
+  const plate = prompt('Гос. номер (опционально):', '');
+  const newProfile = Profiles.create({
+    name: name.trim(),
+    vin: (vin || '').trim() || null,
+    plate: (plate || '').trim() || null,
+  });
+  Profiles.setActive(newProfile.id);
+  state = loadActiveState();
+  renderAll();
+};
+
+window.editCurrentProfile = function() {
+  const p = Profiles.active();
+  if (!p) return;
+  const name = prompt('Название профиля:', p.name || '');
+  if (name === null) return;
+  const vin = prompt('VIN:', p.vin || '');
+  if (vin === null) return;
+  const plate = prompt('Гос. номер:', p.plate || '');
+  if (plate === null) return;
+  Profiles.update(p.id, {
+    name: name.trim() || p.name,
+    vin: (vin || '').trim().toUpperCase() || null,
+    plate: (plate || '').trim().toUpperCase() || null,
+  });
+  state = Profiles.active();
+  renderAll();
+};
+
+window.deleteCurrentProfile = function() {
+  const p = Profiles.active();
+  if (!p) return;
+  if (!confirm(`Удалить профиль «${Profiles.label(p)}»?\n\nВсе данные ТО этого авто будут потеряны!\n\nСовет: сначала сделайте экспорт.`)) return;
+  if (!confirm('Точно удалить? Действие необратимо.')) return;
+  Profiles.remove(p.id);
+  state = loadActiveState();
+  renderAll();
+};
+
+/* ============================================================
+   Расчёт статуса
+   ============================================================ */
+function itemStatus(item) {
+  if (!state) return { state:'unknown', remainingKm:null, remainingDays:null, percent:0 };
+  const hasBase = item.lastKm != null || item.lastDate;
+  if (!hasBase) return { state:'unknown', remainingKm:null, remainingDays:null, percent:0 };
+
+  let remainingKm = null;
+  if (item.intervalKm && item.lastKm != null && state.mileage != null) {
+    remainingKm = item.lastKm + item.intervalKm - state.mileage;
+  }
+  let remainingDays = null;
+  if (item.intervalMonths && item.lastDate) {
+    const due = new Date(item.lastDate);
+    due.setMonth(due.getMonth() + item.intervalMonths);
+    remainingDays = Math.round((due - Date.now()) / 86400000);
+  }
+  let level = 'ok';
+  if ((remainingKm != null && remainingKm < 0) || (remainingDays != null && remainingDays < 0)) level = 'danger';
+  else if ((remainingKm != null && remainingKm < 1000) || (remainingDays != null && remainingDays < 30)) level = 'warn';
+
+  let pctKm = 0, pctTime = 0;
+  if (item.intervalKm && item.lastKm != null && state.mileage > item.lastKm) {
+    pctKm = Math.min(100, ((state.mileage - item.lastKm) / item.intervalKm) * 100);
+  }
+  if (item.intervalMonths && item.lastDate) {
+    const months = (Date.now() - new Date(item.lastDate).getTime()) / (30 * 86400000);
+    pctTime = Math.min(100, (months / item.intervalMonths) * 100);
+  }
+  return { state: level, remainingKm, remainingDays, percent: Math.max(pctKm, pctTime) };
+}
+
+/* ============================================================
+   Рендер
+   ============================================================ */
+function renderMileage() {
+  if (!state) return;
+  $('mileageValue').textContent = state.mileage ? state.mileage.toLocaleString('ru-RU') : '—';
+  $('mileageSource').textContent = state.mileageSource === 'obd' ? 'Источник: OBD-II' : 'Источник: ручной ввод';
+  $('mileageUpdated').textContent = state.mileageUpdated
+    ? 'обновлён ' + new Date(state.mileageUpdated).toLocaleString('ru-RU') : '—';
+}
+
+function renderBackupWarning() {
+  const el = $('backupWarning');
+  const last = parseInt(localStorage.getItem(EXPORT_KEY) || '0');
+  if (!last) {
+    el.className = 'alert-banner';
+    el.innerHTML = '⚠️ <strong>Резервная копия не создавалась.</strong> Нажмите «Экспорт (JSON)» — файл сохранит все профили.';
+    el.style.display = 'block';
+  } else {
+    const days = Math.floor((Date.now() - last) / 86400000);
+    if (days > 30) {
+      el.className = 'alert-banner';
+      el.innerHTML = `⚠️ <strong>Последний экспорт: ${days} дн. назад.</strong> Обновите резервную копию.`;
+      el.style.display = 'block';
+    } else el.style.display = 'none';
+  }
+}
+
+function renderAlerts() {
+  if (!state) return;
+  const warnings = [], dangers = [];
+  state.items.forEach(it => {
+    const s = itemStatus(it);
+    if (s.state === 'danger') dangers.push(it.name);
+    else if (s.state === 'warn') warnings.push(it.name);
+  });
+  let html = '';
+  if (dangers.length) html += `<div class="alert-banner danger">
+    <strong>🔴 Просрочено: ${dangers.length} поз.</strong>
+    <ul>${dangers.map(n => `<li>${escapeHtml(n)}</li>`).join('')}</ul></div>`;
+  if (warnings.length) html += `<div class="alert-banner">
+    <strong>🟡 Скоро ТО: ${warnings.length} поз.</strong>
+    <ul>${warnings.map(n => `<li>${escapeHtml(n)}</li>`).join('')}</ul></div>`;
+  $('alerts').innerHTML = html;
+}
+
+function renderItems() {
+  if (!state) return;
+  const container = $('itemsList');
+  const groups = {};
+  state.items.forEach(item => {
+    const cat = item.category || 'Прочее';
+    (groups[cat] = groups[cat] || []).push(item);
+  });
+
+  const renderOne = item => {
+    const s = itemStatus(item);
+    const info = [];
+    if (item.intervalKm) info.push(`интервал ${item.intervalKm.toLocaleString('ru-RU')} км`);
+    if (item.intervalMonths) info.push(`${item.intervalMonths} мес`);
+    if (item.lastKm != null) info.push(`послед. ${item.lastKm.toLocaleString('ru-RU')} км`);
+    if (item.lastDate) info.push(item.lastDate);
+
+    let remain = '';
+    if (s.remainingKm != null) {
+      remain += `<span class="remain">${s.remainingKm < 0 ? 'просрочено на ' + Math.abs(s.remainingKm).toLocaleString('ru-RU') + ' км' : 'осталось ' + s.remainingKm.toLocaleString('ru-RU') + ' км'}</span>`;
+    }
+    if (s.remainingDays != null) {
+      if (remain) remain += ' · ';
+      remain += `<span class="remain">${s.remainingDays < 0 ? 'просрочено на ' + Math.abs(s.remainingDays) + ' дн.' : s.remainingDays + ' дн.'}</span>`;
+    }
+    if (!remain) remain = '<span style="color:#666">нажмите «Выполнено» чтобы начать учёт</span>';
+
+    return `
+      <div class="item ${s.state === 'warn' ? 'warn' : s.state === 'danger' ? 'danger' : ''}">
+        <div class="item-main">
+          <div class="item-name">${escapeHtml(item.name)}</div>
+          ${item.note ? `<div class="item-note">${escapeHtml(item.note)}</div>` : ''}
+          <div class="item-info">${info.join(' · ')}</div>
+          <div class="item-info">${remain}</div>
+          <div class="progress"><div class="progress-fill" style="width:${s.percent}%"></div></div>
+        </div>
+        <div class="item-actions">
+          <button onclick="markDone('${item.id}')">✓ Выполнено</button>
+          <button class="ghost small" onclick="editItem('${item.id}')">✎</button>
+          <button class="ghost small" onclick="deleteItem('${item.id}')">✕</button>
+        </div>
+      </div>`;
+  };
+
+  const order = ['Двигатель','Охлаждение','Тормоза','Подвеска передняя','Подвеска задняя',
+                 'Рулевое','Трансмиссия','Электрика','Прочее'];
+  const categories = Object.keys(groups).sort((a,b) => {
+    const ia = order.indexOf(a), ib = order.indexOf(b);
+    return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+  });
+
+  container.innerHTML = categories.map(cat => {
+    const items = groups[cat];
+    let warn = 0, danger = 0;
+    items.forEach(it => {
+      const s = itemStatus(it);
+      if (s.state === 'warn') warn++;
+      if (s.state === 'danger') danger++;
+    });
+    let badge = '';
+    if (danger) badge += `<span style="color:#f55;font-weight:600">🔴 ${danger}</span>`;
+    if (warn) badge += `<span style="color:#fa0;font-weight:600">🟡 ${warn}</span>`;
+    return `
+      <div class="category-header">
+        <span>${escapeHtml(cat)}</span>${badge}
+        <span style="color:#555;font-weight:400;font-size:12px;margin-left:auto">${items.length} поз.</span>
+      </div>
+      ${items.map(renderOne).join('')}`;
+  }).join('');
+}
+
+function renderJournal() {
+  if (!state) return;
+  const body = $('journalBody');
+  const sorted = [...state.journal].sort((a, b) =>
+    (b.km || 0) - (a.km || 0) || (b.date || '').localeCompare(a.date || ''));
+
+  if (!sorted.length) body.innerHTML = '<tr><td colspan="6" class="empty">Журнал пуст.</td></tr>';
+  else body.innerHTML = sorted.map(r => `
+    <tr>
+      <td>${escapeHtml(r.date || '—')}</td>
+      <td class="num">${r.km ? r.km.toLocaleString('ru-RU') : '—'}</td>
+      <td>${escapeHtml(r.itemName)}</td>
+      <td>${escapeHtml(r.note || '')}</td>
+      <td class="num">${r.cost ? r.cost.toLocaleString('ru-RU') : ''}</td>
+      <td class="actions"><button class="ghost small" onclick="deleteRecord('${r.id}')">✕</button></td>
+    </tr>`).join('');
+
+  const total = state.journal.reduce((s, r) => s + (r.cost || 0), 0);
+  $('journalSummary').innerHTML =
+    `Записей: <strong>${state.journal.length}</strong> · Всего: <strong>${total.toLocaleString('ru-RU')} ₽</strong>`;
+}
+
+function renderItemSelect() {
+  if (!state) return;
+  const groups = {};
+  state.items.forEach(i => {
+    const cat = i.category || 'Прочее';
+    (groups[cat] = groups[cat] || []).push(i);
+  });
+  const order = ['Двигатель','Охлаждение','Тормоза','Подвеска передняя','Подвеска задняя',
+                 'Рулевое','Трансмиссия','Электрика','Прочее'];
+  const categories = Object.keys(groups).sort((a,b) => {
+    const ia = order.indexOf(a), ib = order.indexOf(b);
+    return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+  });
+  $('recItem').innerHTML = categories.map(cat =>
+    `<optgroup label="${escapeHtml(cat)}">${groups[cat].map(i =>
+      `<option value="${i.id}">${escapeHtml(i.name)}</option>`).join('')}</optgroup>`
+  ).join('');
+}
+
+function renderEngineMeta() {
+  if (!state) return;
+  if (state.engine && ENGINES[state.engine]) {
+    $('engineSelect').value = state.engine;
+    $('btnResetIntervals').disabled = false;
+    const eng = ENGINES[state.engine];
+    $('engineMeta').className = 'engine-meta ok';
+    $('engineMeta').innerHTML = `<strong>${eng.name}</strong> · ${eng.power} · ${eng.years}<br>
+      <span style="color:#888">${escapeHtml(eng.timing)}</span>`;
+  } else if (state.items.some(i => i.lastKm != null)) {
+    $('engineMeta').innerHTML = '<span style="color:#fa0">⚠️ Двигатель не выбран</span>';
+  } else {
+    $('engineSelect').value = '';
+    $('engineMeta').className = 'engine-meta';
+    $('engineMeta').textContent = 'Двигатель не выбран';
+  }
+}
+
+function renderAll() {
+  renderProfileBar();
+  if (!state) return;
+  renderMileage();
+  renderBackupWarning();
+  renderAlerts();
+  renderItems();
+  renderItemSelect();
+  renderJournal();
+  renderEngineMeta();
+}
+
+/* ============================================================
+   Пробег
+   ============================================================ */
+$('btnManualMileage').onclick = () => {
+  const v = prompt('Текущий пробег (км):', state?.mileage || '');
+  if (v === null) return;
+  const n = parseFloat(v);
+  if (isNaN(n) || n < 0) { alert('Некорректное значение'); return; }
+  state.mileage = n;
+  state.mileageSource = 'manual';
+  state.mileageUpdated = Date.now();
+  save(); renderAll();
+};
+
+$('btnSyncMileage').onclick = () => {
+  const p = Profiles.active();
+  if (p && p.mileageSource === 'obd' && p.mileage) {
+    state.mileage = p.mileage;
+    state.mileageSource = p.mileageSource;
+    state.mileageUpdated = p.mileageUpdated;
+    save(); renderAll();
+    alert('Пробег обновлён из OBD: ' + p.mileage.toLocaleString('ru-RU') + ' км');
+  } else {
+    alert('Свежих данных OBD нет.\n\nОткройте «Диагностика», подключитесь к адаптеру — пробег прочитается автоматически.');
+  }
+};
+
+/* ============================================================
+   Двигатель
+   ============================================================ */
+function applyEngine(code, silent) {
+  const eng = ENGINES[code];
+  if (!eng || !state) return;
+  state.engine = code;
+  state.items.forEach(item => {
+    const ov = eng.overrides[item.id];
+    if (!ov) return;
+    item.intervalKm = ov.intervalKm;
+    item.intervalMonths = ov.intervalMonths;
+    if (ov.note !== undefined) item.note = ov.note;
+    else delete item.note;
+  });
+  save();
+  renderAll();
+  if (!silent) alert(`Интервалы обновлены для ${eng.name}.\nЗаписи журнала сохранены.`);
+}
+
+$('engineSelect').addEventListener('change', e => {
+  const code = e.target.value;
+  if (!code) {
+    state.engine = null;
+    save();
+    $('engineMeta').className = 'engine-meta';
+    $('engineMeta').textContent = 'Двигатель не выбран';
+    $('btnResetIntervals').disabled = true;
+    return;
+  }
+  const eng = ENGINES[code];
+  const msg = `Применить интервалы для ${eng.name}?\n\n` +
+    (state.journal.length ? `Записи журнала (${state.journal.length}) сохранятся. Ручные правки интервалов перезапишутся.` : '');
+  if (!confirm(msg)) { e.target.value = state.engine || ''; return; }
+  applyEngine(code, false);
+});
+
+$('btnResetIntervals').onclick = () => {
+  if (!state?.engine) return;
+  if (!confirm(`Вернуть интервалы для ${ENGINES[state.engine].name}?`)) return;
+  applyEngine(state.engine, true);
+};
+
+/* ============================================================
+   Записи
+   ============================================================ */
+$('btnAddRecord').onclick = () => {
+  if (!state) return;
+  const date = $('recDate').value;
+  const km = parseFloat($('recKm').value);
+  const itemId = $('recItem').value;
+  const cost = parseFloat($('recCost').value) || 0;
+  const note = $('recNote').value.trim();
+  if (!date || !itemId || isNaN(km)) { alert('Заполните дату, пробег и позицию'); return; }
+  const item = state.items.find(i => i.id === itemId);
+  if (!item) return;
+  state.journal.push({ id: uid(), date, km, itemId, itemName: item.name, cost, note, ts: Date.now() });
+  if (item.lastKm == null || km >= item.lastKm) { item.lastKm = km; item.lastDate = date; }
+  if (!state.mileage || km > state.mileage) {
+    state.mileage = km; state.mileageSource = 'manual'; state.mileageUpdated = Date.now();
+  }
+  save(); resetRecordForm(); renderAll();
+};
+
+function resetRecordForm() {
+  $('recDate').value = new Date().toISOString().slice(0, 10);
+  $('recKm').value = state?.mileage || '';
+  $('recCost').value = ''; $('recNote').value = '';
+}
+
+window.markDone = function(itemId) {
+  if (!state) return;
+  const item = state.items.find(i => i.id === itemId);
+  if (!item) return;
+  $('recItem').value = itemId;
+  $('recDate').value = new Date().toISOString().slice(0, 10);
+  $('recKm').value = state.mileage || '';
+  $('recCost').value = ''; $('recNote').value = '';
+  $('recDate').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  $('recDate').focus();
+};
+
+window.editItem = function(id) {
+  const item = state.items.find(i => i.id === id);
+  if (!item) return;
+  const name = prompt('Название:', item.name); if (name === null) return;
+  const kmStr = prompt('Интервал по км (0 = не учитывать):', String(item.intervalKm || 0)); if (kmStr === null) return;
+  const mStr = prompt('Интервал по мес (0 = не учитывать):', String(item.intervalMonths || 0)); if (mStr === null) return;
+  item.name = name.trim() || item.name;
+  const k = parseFloat(kmStr); item.intervalKm = (isNaN(k) || k <= 0) ? null : k;
+  const m = parseFloat(mStr); item.intervalMonths = (isNaN(m) || m <= 0) ? null : m;
+  save(); renderAll();
+};
+
+window.deleteItem = function(id) {
+  if (!state) return;
+  const item = state.items.find(i => i.id === id);
+  if (!item) return;
+  const hasHistory = state.journal.some(r => r.itemId === id);
+  const msg = hasHistory
+    ? `Удалить «${item.name}»? Связанные записи журнала останутся.`
+    : `Удалить «${item.name}»?`;
+  if (!confirm(msg)) return;
+  state.items = state.items.filter(i => i.id !== id);
+  save(); renderAll();
+};
+
+$('btnAddItem').onclick = () => {
+  if (!state) return;
+  const name = prompt('Название:')?.trim(); if (!name) return;
+  const kmStr = prompt('Интервал по км (0 = не учитывать):', '10000'); if (kmStr === null) return;
+  const mStr = prompt('Интервал по мес (0 = не учитывать):', '12'); if (mStr === null) return;
+  const catStr = prompt('Категория:', 'Прочее'); if (catStr === null) return;
+  const k = parseFloat(kmStr), m = parseFloat(mStr);
+  state.items.push({
+    id: uid(), name, category: catStr.trim() || 'Прочее',
+    intervalKm: (isNaN(k) || k <= 0) ? null : k,
+    intervalMonths: (isNaN(m) || m <= 0) ? null : m,
+    lastKm: null, lastDate: null
+  });
+  save(); renderAll();
+};
+
+window.deleteRecord = function(id) {
+  if (!state) return;
+  if (!confirm('Удалить запись?')) return;
+  state.journal = state.journal.filter(r => r.id !== id);
+  state.items.forEach(item => {
+    const entries = state.journal.filter(r => r.itemId === item.id);
+    if (entries.length) {
+      const latest = entries.sort((a, b) =>
+        (b.km || 0) - (a.km || 0) || (b.date || '').localeCompare(a.date || ''))[0];
+      item.lastKm = latest.km; item.lastDate = latest.date;
+    } else { item.lastKm = null; item.lastDate = null; }
+  });
+  save(); renderAll();
+};
+
+/* ============================================================
+   Экспорт / импорт
+   ============================================================ */
+$('btnExport').onclick = () => {
+  // Экспорт ВСЕХ профилей
+  const allData = { _meta: { exportedAt: new Date().toISOString(), version: 3 }, profiles: Profiles._load() };
+  const blob = new Blob([JSON.stringify(allData, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `logan-profiles-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  localStorage.setItem(EXPORT_KEY, Date.now().toString());
+  renderBackupWarning();
+};
+
+$('btnImport').onclick = () => $('fileInput').click();
+$('fileInput').onchange = e => {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      // Формат 3: { profiles: { activeId, profiles } }
+      if (data.profiles && data.profiles.profiles) {
+        const count = Object.keys(data.profiles.profiles).length;
+        if (!confirm(`Импортировать ${count} профилей? Текущие данные будут заменены.`)) return;
+        localStorage.setItem(Profiles.KEY, JSON.stringify(data.profiles));
+        Profiles._data = null;
+      }
+      // Старый формат: { items, journal }
+      else if (data.items && data.journal) {
+        if (!confirm('Импортировать как новый профиль?')) return;
+        const name = prompt('Название профиля:', 'Импортированный') || 'Импортированный';
+        const p = Profiles.create({ name });
+        Profiles.update(p.id, {
+          items: data.items, journal: data.journal, engine: data.engine || null,
+          mileage: data.mileage || null, mileageSource: data.mileageSource || 'manual',
+          mileageUpdated: data.mileageUpdated || null,
+        });
+        Profiles.setActive(p.id);
+      }
+      else throw new Error('Неизвестный формат');
+
+      state = loadActiveState();
+      renderAll();
+      alert('Импорт успешен');
+    } catch (err) { alert('Ошибка импорта: ' + err.message); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+};
+
+$('btnRestoreBackup').onclick = () => {
+  // Резерв: сохраняем снапшот всех профилей раз в сессию перед изменениями
+  const KEY = 'obd_profiles_v1_backup';
+  const raw = localStorage.getItem(KEY);
+  if (!raw) { alert('Резервная копия не найдена.\n\nСовет: делайте «Экспорт (JSON)» — файл хранит все профили.'); return; }
+  if (!confirm('Восстановить предыдущее состояние профилей?')) return;
+  try {
+    localStorage.setItem(Profiles.KEY, raw);
+    Profiles._data = null;
+    state = loadActiveState();
+    renderAll();
+    alert('Восстановлено из авторезерва');
+  } catch (e) { alert('Не удалось: ' + e.message); }
+};
+
+$('btnPrint').onclick = () => window.print();
+
+$('btnClearAll').onclick = () => {
+  if (!state) return;
+  if (!confirm(`Удалить все данные ТО профиля «${Profiles.label(state)}»?\n\nСначала лучше сделать экспорт!`)) return;
+  if (!confirm('Точно удалить?')) return;
+  state.items = DEFAULT_ITEMS.map(it => ({ ...it, lastKm: null, lastDate: null }));
+  state.journal = [];
+  state.engine = null;
+  state.mileage = null;
+  save(); resetRecordForm(); renderAll();
+};
+
+/* ============================================================
+   Создание профиля с нуля (страница to.html без активного)
+   ============================================================ */
+$('btnCreateProfile').onclick = () => {
+  const name = $('newProfileName').value.trim();
+  if (!name) { alert('Введите название профиля'); return; }
+  const vin = $('newProfileVin').value.trim().toUpperCase();
+  const plate = $('newProfilePlate').value.trim().toUpperCase();
+  if (vin && Profiles.findByVin(vin)) {
+    if (!confirm('Профиль с таким VIN уже существует. Всё равно создать новый?')) return;
+  }
+  const profile = Profiles.create({
+    name, vin: vin || null, plate: plate || null
+  });
+  Profiles.setActive(profile.id);
+  $('newProfileName').value = ''; $('newProfileVin').value = ''; $('newProfilePlate').value = '';
+  state = loadActiveState();
+  resetRecordForm();
+  renderAll();
+};
+
+/* ============================================================
+   Резерв: снапшот перед изменениями
+   ============================================================ */
+function snapshotBackup() {
+  try {
+    const cur = localStorage.getItem(Profiles.KEY);
+    if (cur) localStorage.setItem('obd_profiles_v1_backup', cur);
+  } catch {}
+}
+
+// периодический снапшот при закрытии
+window.addEventListener('beforeunload', () => { save(); snapshotBackup(); });
+
+/* ============================================================
+   Init
+   ============================================================ */
+(function init() {
+  state = loadActiveState();
+  resetRecordForm();
+  renderAll();
+})();
+</script>
+</body>
+</html>

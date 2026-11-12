@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Renault Logan · ELM327 BLE</title>
+<link rel="prefetch" href="to.html">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="profiles.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: system-ui, -apple-system, sans-serif; background:#111; color:#eee;
+         margin:0; padding:16px; max-width:1100px; margin:0 auto; }
+  h1 { font-size:20px; margin:8px 0 16px; }
+  h2 { font-size:14px; color:#aaa; margin:18px 0 8px; text-transform:uppercase;
+       letter-spacing:.5px; font-weight:600; }
+  button { padding:9px 14px; font-size:14px; border-radius:8px; border:0;
+           background:#2d7; color:#000; cursor:pointer; font-weight:600; margin:2px; }
+  button:disabled { background:#444; color:#888; cursor:default; }
+  button.danger { background:#e55; }
+  button.neutral { background:#4a90e2; color:#fff; }
+  button.ghost { background:#222; color:#ccc; border:1px solid #444; }
+  button.preset { background:#222; color:#ccc; border:1px solid #444; padding:6px 10px; font-size:12px; }
+  button.preset.active { background:#2d7; color:#000; border-color:#2d7; }
+
+  .nav { display:flex; gap:4px; margin-bottom:16px; border-bottom:1px solid #333; }
+  .nav a { padding:10px 16px; color:#888; text-decoration:none;
+           border-bottom:2px solid transparent; font-weight:600; font-size:14px; }
+  .nav a.active { color:#2d7; border-color:#2d7; }
+  .nav a:hover { color:#eee; }
+
+  .profile-chip { background:linear-gradient(135deg,#1a2e1a,#1c1c1c);
+                  border:1px solid #2d7; border-radius:8px;
+                  padding:10px 14px; margin-bottom:12px; font-size:13px;
+                  display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .profile-chip .vin { color:#666; font-size:11px; font-family:ui-monospace, monospace; }
+  .profile-chip .pname { font-weight:700; }
+  .profile-chip button { padding:5px 10px; font-size:12px; margin:0; }
+  .profile-chip button:last-child { margin-left:auto; }
+
+  .toolbar { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:8px 0; }
+  .status { margin:10px 0; padding:8px 12px; background:#222; border-radius:6px;
+            font-family:ui-monospace, monospace; font-size:13px; }
+  .status.ok  { background:#0a2a18; color:#6f6; }
+  .status.err { background:#2a0a0a; color:#f88; }
+  .info-row { display:flex; flex-wrap:wrap; gap:10px; margin:10px 0; }
+  .info-box { background:#1c1c1c; border:1px solid #333; border-radius:8px;
+              padding:8px 12px; font-size:13px; flex:1; min-width:180px;
+              display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  .info-box .label { color:#888; text-transform:uppercase; font-size:11px;
+                     letter-spacing:.5px; }
+  .info-box .val { font-family:ui-monospace, monospace; color:#eee; flex:1; min-width:60px; }
+  .info-box button { padding:3px 8px; font-size:11px; margin:0; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:10px; }
+  .card { background:#1c1c1c; border:2px solid #333; border-radius:10px; padding:12px;
+          transition: background .3s, border-color .3s, opacity .3s; }
+  .card.unsupported { opacity:.35; }
+  .card .label { font-size:11px; color:#888; text-transform:uppercase; letter-spacing:.5px; }
+  .card .value { font-size:24px; font-weight:600; margin-top:4px;
+                 font-variant-numeric:tabular-nums; transition: color .3s; }
+  .card .unit { font-size:12px; color:#888; margin-left:4px; }
+  .card.alert-cold    { background:rgba(74,144,226,.12); border-color:#4a90e2; }
+  .card.alert-cold    .value { color:#7cb6ff; }
+  .card.alert-normal  { background:rgba(45,215,120,.10); border-color:#2d7; }
+  .card.alert-normal  .value { color:#4eea8f; }
+  .card.alert-warn    { background:rgba(250,180,0,.14); border-color:#fa0; }
+  .card.alert-warn    .value { color:#ffc84a; }
+  .card.alert-danger  { background:rgba(229,85,85,.16); border-color:#e55;
+                        animation:pulse 1s infinite; }
+  .card.alert-danger  .value { color:#ff7a7a; font-weight:700; }
+  @keyframes pulse {
+    0%,100% { box-shadow: 0 0 0 0 rgba(229,85,85,.6); }
+    50% { box-shadow: 0 0 0 10px rgba(229,85,85,0); }
+  }
+  .chart-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:12px 0; }
+  .chart-box { background:#1c1c1c; border:1px solid #333; border-radius:10px;
+               padding:10px; height:220px; position:relative; }
+  @media (max-width:700px) { .chart-row { grid-template-columns:1fr; } }
+  #dtcs { font-family:ui-monospace, monospace; background:#1c1c1c; padding:12px;
+          border-radius:10px; min-height:50px; white-space:pre-wrap; font-size:13px; }
+  .ok { color:#2d7; } .err { color:#f55; } .muted { color:#666; }
+  #logStatus { color:#aaa; font-size:13px; margin-left:8px; font-family:ui-monospace, monospace; }
+  .banner { background:#2a1d00; border:1px solid #fa0; color:#ffd76a;
+            padding:10px 14px; border-radius:8px; margin:10px 0;
+            display:flex; gap:12px; align-items:center; flex-wrap:wrap; font-size:13px; }
+  .banner button { padding:6px 10px; font-size:12px; }
+  .settings { background:#1c1c1c; border:1px solid #333; border-radius:8px;
+              padding:10px 12px; display:flex; gap:16px; align-items:center;
+              flex-wrap:wrap; font-size:13px; margin:8px 0; }
+  .settings label { display:flex; gap:6px; align-items:center; cursor:pointer; }
+  .settings input[type=checkbox] { width:16px; height:16px; }
+</style>
+</head>
+<body>
+    
+<div id="pageLoader" style="position:fixed;inset:0;background:#111;
+     display:flex;align-items:center;justify-content:center;z-index:9999;
+     color:#2d7;font-size:16px;font-family:system-ui;">
+  ⏳ Загрузка…
+</div>
+
+<nav class="nav">
+  <a href="index.html" class="active">🔧 Диагностика</a>
+  <a href="to.html">📋 Журнал ТО</a>
+</nav>
+
+<div class="profile-chip" id="profileChip">
+  <span style="color:#888">🚗 Профиль не выбран</span>
+</div>
+
+<h1>Renault Logan · OBD-II · умный сканер</h1>
+
+<div class="toolbar">
+  <button id="btnConnect">🔌 Подключиться к ELM327</button>
+  <button id="btnReconnect" class="neutral" disabled>🔄 К сохранённому</button>
+</div>
+<div class="status" id="status">Не подключено</div>
+
+<div id="restoreBanner" class="banner" style="display:none">
+  <span>💾 Найден несохранённый лог от <span id="restoreDate">—</span> (<span id="restoreCount">0</span> строк)</span>
+  <button id="btnRestore" class="neutral">📥 Скачать</button>
+  <button id="btnDiscard" class="ghost">🗑 Удалить</button>
+</div>
+
+<div class="info-row">
+  <div class="info-box"><span class="label">VIN</span><span class="val" id="vin">—</span></div>
+  <div class="info-box"><span class="label">Пробег</span>
+    <span class="val" id="mileage">—</span>
+    <button id="btnMileage" class="ghost" disabled title="Прочитать заново">↻</button>
+    <button id="btnOpenTO" class="neutral" title="Открыть журнал ТО">📋 ТО</button>
+  </div>
+  <div class="info-box"><span class="label">PID</span><span class="val" id="supportedCount">—</span></div>
+</div>
+
+<div class="settings">
+  <label><input type="checkbox" id="cfgSound" checked> 🔊 Звук алертов</label>
+  <label><input type="checkbox" id="cfgAutosave" checked> 💾 Автосохранение лога</label>
+</div>
+
+<h2>Живые параметры</h2>
+<div class="grid">
+  <div class="card" data-pid="0C" data-key="rpm"><div class="label">Обороты</div>
+    <div class="value"><span id="v_rpm">—</span><span class="unit">об/мин</span></div></div>
+  <div class="card" data-pid="0D" data-key="speed"><div class="label">Скорость</div>
+    <div class="value"><span id="v_speed">—</span><span class="unit">км/ч</span></div></div>
+  <div class="card" data-pid="05" data-key="coolant"><div class="label">Темп. ОЖ</div>
+    <div class="value"><span id="v_coolant">—</span><span class="unit">°C</span></div></div>
+  <div class="card" data-pid="0F" data-key="intake"><div class="label">Темп. воздуха</div>
+    <div class="value"><span id="v_intake">—</span><span class="unit">°C</span></div></div>
+  <div class="card" data-pid="11" data-key="tps"><div class="label">Дроссель</div>
+    <div class="value"><span id="v_tps">—</span><span class="unit">%</span></div></div>
+  <div class="card" data-pid="2F" data-key="fuel"><div class="label">Топливо</div>
+    <div class="value"><span id="v_fuel">—</span><span class="unit">%</span></div></div>
+  <div class="card" data-pid="42" data-key="batt"><div class="label">Напряжение</div>
+    <div class="value"><span id="v_batt">—</span><span class="unit">В</span></div></div>
+  <div class="card" data-pid="04" data-key="load"><div class="label">Нагрузка</div>
+    <div class="value"><span id="v_load">—</span><span class="unit">%</span></div></div>
+</div>
+
+<h2>Графики</h2>
+<div class="toolbar" style="margin-top:-4px">
+  <button class="preset active" data-preset="all">Всё</button>
+  <button class="preset" data-preset="battery">🔋 АКБ</button>
+  <button class="preset" data-preset="warmup">🌡 Прогрев</button>
+  <button class="preset" data-preset="accel">🏁 Разгон</button>
+</div>
+<div class="chart-row">
+  <div class="chart-box"><canvas id="chart1"></canvas></div>
+  <div class="chart-box"><canvas id="chart2"></canvas></div>
+</div>
+
+<h2>Запись поездки</h2>
+<div class="toolbar">
+  <button id="btnStartLog" disabled>▶ Старт лога</button>
+  <button id="btnStopLog" disabled>⏹ Стоп</button>
+  <button id="btnDownload" disabled>💾 Скачать CSV</button>
+  <span id="logStatus"></span>
+</div>
+
+<h2>Коды ошибок</h2>
+<div class="toolbar">
+  <button id="btnDtc" disabled>📖 Читать коды</button>
+  <button id="btnClear" class="danger" disabled>🗑 Стереть коды</button>
+</div>
+<div id="dtcs" class="muted">Нажмите «Читать коды» после подключения.</div>
+
+<script>
+   window.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('pageLoader').style.display = 'none';
+});
+
+// Показать оверлей при клике на внутренние ссылки
+document.addEventListener('click', e => {
+  const a = e.target.closest('a[href]');
+  if (!a) return;
+  const href = a.getAttribute('href');
+  if (!href || href.startsWith('#') || href.startsWith('http')) return;
+  const current = location.pathname.split('/').pop() || 'index.html';
+  if (href === current) return;
+  document.getElementById('pageLoader').style.display = 'flex';
+}); 
+/* ============================================================
+   Утилиты
+   ============================================================ */
+const $ = id => document.getElementById(id);
+const statusEl = $('status');
+const setStatus = (t, cls='') => { statusEl.textContent = t; statusEl.className = 'status ' + cls; };
+const escapeHtml = s => String(s ?? '').replace(/[&<>"']/g, c =>
+  ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]);
+
+/* ============================================================
+   ELM327 BLE
+   ============================================================ */
+const KNOWN_SERVICES = [
+  '0000fff0-0000-1000-8000-00805f9b34fb',
+  '0000ffe0-0000-1000-8000-00805f9b34fb',
+  '000018f0-0000-1000-8000-00805f9b34fb',
+  '0000ff00-0000-1000-8000-00805f9b34fb',
+  'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
+];
+
+class Elm327 {
+  constructor() {
+    this.device = null; this.tx = null; this.rx = null;
+    this.buffer = ''; this.waiters = [];
+    this._onNotify = this._onNotify.bind(this);
+  }
+  _onNotify(e) {
+    this.buffer += new TextDecoder().decode(e.target.value);
+    let idx;
+    while ((idx = this.buffer.indexOf('>')) !== -1) {
+      const resp = this.buffer.slice(0, idx);
+      this.buffer = this.buffer.slice(idx + 1);
+      const w = this.waiters.shift();
+      if (w) w.resolve(resp);
+    }
+  }
+  async connectTo(device) {
+    this.device = device;
+    device.addEventListener('gattserverdisconnected', () => {
+      setStatus('Соединение потеряно', 'err');
+      onDisconnect();
+    });
+    const server = await device.gatt.connect();
+    let found = false;
+    for (const uuid of KNOWN_SERVICES) {
+      try {
+        const svc = await server.getPrimaryService(uuid);
+        const chars = await svc.getCharacteristics();
+        let tx = null, rx = null;
+        for (const c of chars) {
+          const p = c.properties;
+          if (!tx && (p.write || p.writeWithoutResponse)) tx = c;
+          if (!rx && (p.notify || p.indicate))          rx = c;
+        }
+        if (tx && rx) { this.tx = tx; this.rx = rx; found = true; break; }
+      } catch {}
+    }
+    if (!found) throw new Error('BLE-сервис ELM327 не найден. Адаптер не BLE?');
+    await this.rx.startNotifications();
+    this.rx.addEventListener('characteristicvaluechanged', this._onNotify);
+
+    setStatus('Инициализация ELM327…');
+    await this.send('ATZ', 4500);
+    await this.send('ATE0');
+    await this.send('ATL0');
+    await this.send('ATS0');
+    await this.send('ATH1');
+    await this.send('ATSP0', 6000);
+  }
+  async connect() {
+    this.device = await navigator.bluetooth.requestDevice({
+      acceptAllDevices: true,
+      optionalServices: KNOWN_SERVICES,
+    });
+    await this.connectTo(this.device);
+  }
+  async disconnect() { try { if (this.device?.gatt.connected) this.device.gatt.disconnect(); } catch {} }
+  async send(cmd, timeout = 2500) {
+    if (!this.tx) throw new Error('Нет соединения');
+    this.buffer = '';
+    const promise = new Promise((resolve, reject) => {
+      const w = { resolve, reject };
+      this.waiters.push(w);
+      setTimeout(() => {
+        const i = this.waiters.indexOf(w);
+        if (i >= 0) { this.waiters.splice(i, 1); reject(new Error('Таймаут: ' + cmd)); }
+      }, timeout);
+    });
+    const bytes = new TextEncoder().encode(cmd + '\r');
+    for (let i = 0; i < bytes.length; i += 20) await this.tx.writeValue(bytes.slice(i, i + 20));
+    return promise;
+  }
+}
+
+const elm = new Elm327();
+
+/* ============================================================
+   Парсинг ответов
+   ============================================================ */
+function extractData(resp, mode, pid) {
+  const needle = (mode + pid).toUpperCase();
+  for (const raw of resp.split(/[\r\n]+/)) {
+    const line = raw.replace(/[^0-9A-Fa-f]/g, '').toUpperCase();
+    const i = line.indexOf(needle);
+    if (i !== -1) return line.slice(i + needle.length);
+  }
+  return null;
+}
+async function query(pid, mode = '01') {
+  const resp = await elm.send(mode + pid, 3000);
+  return extractData(resp, mode, pid);
+}
+const byte = (hex, i) => parseInt(hex.substr(i * 2, 2), 16);
+
+/* ============================================================
+   PID
+   ============================================================ */
+const PID_MAP = { '0C':'rpm','0D':'speed','05':'coolant','0F':'intake',
+                  '11':'tps','2F':'fuel','42':'batt','04':'load' };
+const PID_HANDLERS = {
+  '0C': d => Math.round((byte(d,0)*256 + byte(d,1)) / 4),
+  '0D': d => byte(d,0),
+  '05': d => byte(d,0) - 40,
+  '0F': d => byte(d,0) - 40,
+  '11': d => Math.round(byte(d,0) * 100 / 255),
+  '2F': d => Math.round(byte(d,0) * 100 / 255),
+  '42': d => +((byte(d,0)*256 + byte(d,1)) / 1000).toFixed(1),
+  '04': d => Math.round(byte(d,0) * 100 / 255),
+};
+
+const current = { rpm:null, speed:null, coolant:null, intake:null,
+                  tps:null, fuel:null, batt:null, load:null };
+let supportedPids = new Set();
+let polling = false;
+
+/* ============================================================
+   Определение PID и VIN
+   ============================================================ */
+async function detectSupportedPids() {
+  const supported = new Set();
+  for (const base of [0x00, 0x20, 0x40]) {
+    const pid = base.toString(16).toUpperCase().padStart(2, '0');
+    try {
+      const d = await query(pid);
+      if (!d || d.length < 8) break;
+      const b = [0,1,2,3].map(i => parseInt(d.substr(i*2,2), 16));
+      for (let k = 0; k < 32; k++) {
+        if (b[Math.floor(k/8)] & (1 << (7 - (k % 8)))) supported.add(base + 1 + k);
+      }
+      if (!supported.has(base + 0x20) && base < 0x40) break;
+    } catch { break; }
+  }
+  return supported;
+}
+
+async function readVIN() {
+  try {
+    const resp = await elm.send('0902', 6000);
+    let clean = resp.replace(/\d:/g, '').replace(/[^0-9A-Fa-f]/g, '').toUpperCase();
+    const i = clean.indexOf('490201');
+    if (i === -1) return null;
+    const vinHex = clean.slice(i + 6, i + 6 + 34);
+    let vin = '';
+    for (let k = 0; k < vinHex.length; k += 2) {
+      const c = parseInt(vinHex.substr(k,2), 16);
+      if (c >= 0x20 && c < 0x7F) vin += String.fromCharCode(c);
+    }
+    return vin.trim() || null;
+  } catch { return null; }
+}
+
+/* ============================================================
+   Пробег + сохранение в активный профиль
+   ============================================================ */
+const MILEAGE_KEY = 'obd_mileage_v1';
+
+function parseMileage(resp) {
+  const clean = resp.replace(/\s/g, '').replace(/[^0-9A-Fa-f]/g, '').toUpperCase();
+  const patterns = [
+    /62F187([0-9A-F]{8})/,
+    /62F187([0-9A-F]{4,8})/,
+    /6101([0-9A-F]{6,8})/,
+    /6102([0-9A-F]{6,8})/,
+    /622101([0-9A-F]{4,8})/,
+  ];
+  for (const p of patterns) {
+    const m = clean.match(p);
+    if (m) {
+      const val = parseInt(m[1].slice(0, 8), 16);
+      if (val > 500 && val < 990000) return val;
+    }
+  }
+  return null;
+}
+
+function persistMileage(km) {
+  const p = Profiles.active();
+  if (p) {
+    Profiles.update(p.id, { mileage: km, mileageSource: 'obd', mileageUpdated: Date.now() });
+    updateProfileChip();
+  }
+  // Legacy-ключ для обратной совместимости
+  try {
+    localStorage.setItem(MILEAGE_KEY, JSON.stringify({ value: km, source: 'obd', updatedAt: Date.now() }));
+  } catch (e) { console.warn('Не удалось сохранить пробег', e); }
+}
+
+async function readMileage() {
+  const attempts = [
+    { header: '7E0', cmd: '22F187' },
+    { header: '720', cmd: '22F187' },
+    { header: '743', cmd: '22F187' },
+    { header: '7C6', cmd: '22F187' },
+    { header: '743', cmd: '222101' },
+    { header: '17',  cmd: '2101' },
+    { header: '17',  cmd: '2102' },
+  ];
+  for (const a of attempts) {
+    try {
+      await elm.send('ATSH ' + a.header, 1500);
+      const resp = await elm.send(a.cmd, 2500);
+      const km = parseMileage(resp);
+      if (km) {
+        persistMileage(km);
+        await elm.send('ATSH 7DF', 1000).catch(()=>{});
+        return km;
+      }
+    } catch {}
+  }
+  await elm.send('ATSH 7DF', 1000).catch(()=>{});
+  return null;
+}
+
+/* ============================================================
+   Звук
+   ============================================================ */
+let audioCtx = null;
+function ensureAudio() {
+  if (!audioCtx) {
+    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch {}
+  }
+  if (audioCtx?.state === 'suspended') audioCtx.resume();
+}
+function beep(freq = 880, durMs = 250, vol = 0.15) {
+  if (!settings.sound) return;
+  ensureAudio();
+  if (!audioCtx) return;
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = 'sine';
+  o.frequency.value = freq;
+  g.gain.setValueAtTime(vol, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + durMs/1000);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(); o.stop(audioCtx.currentTime + durMs/1000);
+}
+function alertBeep(type) {
+  if (type === 'danger') {
+    beep(880, 150); setTimeout(()=>beep(660, 150), 180); setTimeout(()=>beep(880, 150), 360);
+  } else beep(660, 200);
+}
+
+/* ============================================================
+   Настройки
+   ============================================================ */
+const SETTINGS_KEY = 'obd_settings_v1';
+const settings = (() => {
+  try { return Object.assign({ sound: true, autosave: true },
+    JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); }
+  catch { return { sound: true, autosave: true }; }
+})();
+function saveSettings() {
+  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch {}
+}
+$('cfgSound').checked = settings.sound;
+$('cfgAutosave').checked = settings.autosave;
+$('cfgSound').addEventListener('change', e => { settings.sound = e.target.checked; saveSettings(); });
+$('cfgAutosave').addEventListener('change', e => { settings.autosave = e.target.checked; saveSettings(); });
+
+/* ============================================================
+   Алерты
+   ============================================================ */
+const alertCooldown = {};
+function cooldownOk(key, ms = 5000) {
+  const now = Date.now();
+  if (!alertCooldown[key] || now - alertCooldown[key] > ms) { alertCooldown[key] = now; return true; }
+  return false;
+}
+function applyCoolantAlert(card, v) {
+  card.classList.remove('alert-cold','alert-normal','alert-warn','alert-danger');
+  if (v == null) return;
+  if (v < 60)        card.classList.add('alert-cold');
+  else if (v <= 95)  card.classList.add('alert-normal');
+  else if (v <= 105) card.classList.add('alert-warn');
+  else {
+    card.classList.add('alert-danger');
+    if (cooldownOk('coolant')) alertBeep('danger');
+  }
+  if (v > 100 && v <= 105 && cooldownOk('coolant_warn', 15000)) alertBeep('warn');
+}
+function applyBatteryAlert(card, v) {
+  card.classList.remove('alert-cold','alert-normal','alert-warn','alert-danger');
+  if (v == null) return;
+  if (v < 11.8)       { card.classList.add('alert-danger'); if (cooldownOk('batt')) alertBeep('danger'); }
+  else if (v < 12.3)   card.classList.add('alert-warn');
+  else if (v <= 14.5)  card.classList.add('alert-normal');
+  else if (v <= 14.8)  card.classList.add('alert-warn');
+  else                 { card.classList.add('alert-warn'); if (cooldownOk('batt_over', 15000)) alertBeep('warn'); }
+}
+
+/* ============================================================
+   Графики
+   ============================================================ */
+const MAX_POINTS = 60;
+const chartCommonOpts = {
+  responsive: true, maintainAspectRatio: false, animation: false,
+  interaction: { intersect: false, mode: 'index' },
+  elements: { point: { radius: 0 }, line: { borderWidth: 2, tension: 0.25 } },
+  plugins: {
+    legend: { labels: { color: '#ccc', boxWidth: 12, font: { size: 11 } } },
+    tooltip: { enabled: true },
+  },
+  scales: {
+    x: { display: false },
+    y:  { position: 'left',  ticks: { color: '#888', font:{size:10} }, grid:{ color:'#2a2a2a' } },
+    y1: { position: 'right', ticks: { color: '#888', font:{size:10} }, grid:{ drawOnChartArea:false } },
+  }
+};
+
+const chart1 = new Chart($('chart1'), {
+  type: 'line',
+  data: { labels: [], datasets: [
+    { label: 'RPM',  data: [], borderColor: '#2d7', yAxisID: 'y' },
+    { label: 'км/ч', data: [], borderColor: '#49f', yAxisID: 'y1' },
+  ]},
+  options: chartCommonOpts,
+});
+const chart2 = new Chart($('chart2'), {
+  type: 'line',
+  data: { labels: [], datasets: [
+    { label: 'ОЖ °C',     data: [], borderColor: '#f80', yAxisID: 'y' },
+    { label: 'Воздух °C', data: [], borderColor: '#c8f', yAxisID: 'y' },
+    { label: 'Вольт',     data: [], borderColor: '#2d7', yAxisID: 'y1' },
+  ]},
+  options: chartCommonOpts,
+});
+
+function pushChartSample() {
+  const label = new Date().toLocaleTimeString();
+  const push = (chart, values) => {
+    chart.data.labels.push(label);
+    chart.data.datasets.forEach((ds, i) => ds.data.push(values[i] ?? null));
+    if (chart.data.labels.length > MAX_POINTS) {
+      chart.data.labels.shift();
+      chart.data.datasets.forEach(ds => ds.data.shift());
+    }
+    chart.update('none');
+  };
+  push(chart1, [current.rpm, current.speed]);
+  push(chart2, [current.coolant, current.intake, current.batt]);
+}
+
+const PRESETS = {
+  all:     { c1: [true, true],   c2: [true, true, true]  },
+  battery: { c1: [false, false], c2: [false, false, true] },
+  warmup:  { c1: [false, false], c2: [true, true, false] },
+  accel:   { c1: [true, true],   c2: [false, false, false] },
+};
+function applyPreset(name) {
+  const p = PRESETS[name]; if (!p) return;
+  chart1.data.datasets.forEach((ds, i) => ds.hidden = !p.c1[i]);
+  chart2.data.datasets.forEach((ds, i) => ds.hidden = !p.c2[i]);
+  chart1.update(); chart2.update();
+  document.querySelectorAll('.preset').forEach(b =>
+    b.classList.toggle('active', b.dataset.preset === name));
+}
+document.querySelectorAll('.preset').forEach(b => {
+  b.addEventListener('click', () => applyPreset(b.dataset.preset));
+});
+
+/* ============================================================
+   CSV + localStorage
+   ============================================================ */
+const LOG_STORAGE_KEY = 'obd_log_unsaved_v1';
+let logActive = false;
+let logRows = [];
+let logStart = 0;
+let sampleCount = 0;
+
+function serializeLog() {
+  try {
+    localStorage.setItem(LOG_STORAGE_KEY, JSON.stringify({
+      rows: logRows, startedAt: logStart, savedAt: Date.now()
+    }));
+  } catch (e) { console.warn('localStorage переполнен', e); }
+}
+function clearStorageLog() { try { localStorage.removeItem(LOG_STORAGE_KEY); } catch {} }
+
+function startLog() {
+  logActive = true;
+  logStart = Date.now();
+  sampleCount = 0;
+  logRows = [['time_ms','iso_time','rpm','speed_kmh','coolant_c','intake_c',
+              'throttle_pct','fuel_pct','voltage_v','load_pct']];
+  $('btnStartLog').disabled = true;
+  $('btnStopLog').disabled = false;
+  $('btnDownload').disabled = true;
+  $('logStatus').textContent = '● пишем…';
+  $('logStatus').className = 'err';
+  $('restoreBanner').style.display = 'none';
+}
+function stopLog() {
+  logActive = false;
+  $('btnStartLog').disabled = false;
+  $('btnStopLog').disabled = true;
+  $('btnDownload').disabled = logRows.length < 2;
+  $('logStatus').textContent = `■ остановлено, ${logRows.length-1} строк`;
+  $('logStatus').className = 'ok';
+}
+function logSample() {
+  const t = Date.now() - logStart;
+  const iso = new Date().toISOString();
+  logRows.push([t, iso, current.rpm ?? '', current.speed ?? '', current.coolant ?? '',
+                current.intake ?? '', current.tps ?? '', current.fuel ?? '',
+                current.batt ?? '', current.load ?? '']);
+  sampleCount++;
+  if (settings.autosave && sampleCount % 10 === 0) serializeLog();
+}
+function downloadCSV() {
+  const csv = logRows.map(r => r.join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `obd-log-${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.csv`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  clearStorageLog();
+  $('restoreBanner').style.display = 'none';
+}
+
+(function checkRestore() {
+  try {
+    const raw = localStorage.getItem(LOG_STORAGE_KEY);
+    if (!raw) return;
+    const { rows, savedAt } = JSON.parse(raw);
+    if (!rows || rows.length < 2) return;
+    $('restoreDate').textContent = new Date(savedAt).toLocaleString();
+    $('restoreCount').textContent = rows.length - 1;
+    $('restoreBanner').style.display = 'flex';
+    $('btnRestore').onclick = () => { logRows = rows; downloadCSV(); };
+    $('btnDiscard').onclick = () => { clearStorageLog(); $('restoreBanner').style.display = 'none'; };
+  } catch {}
+})();
+
+/* ============================================================
+   DTC
+   ============================================================ */
+function decodeDTC(hi, lo) {
+  const n = parseInt(hi + lo, 16);
+  if (n === 0) return null;
+  const sys = 'PCBU'[(n >> 14) & 3];
+  return sys + (n & 0x3FFF).toString(16).toUpperCase().padStart(4, '0');
+}
+async function readDTCs() {
+  const codes = [];
+  for (const [mode, tag] of [['03', ''], ['07', ' (pending)']]) {
+    try {
+      const resp = await elm.send(mode, 5000);
+      for (const raw of resp.split(/[\r\n]+/)) {
+        const l = raw.replace(/[^0-9A-Fa-f]/g, '').toUpperCase();
+        const i = l.indexOf('4' + mode.slice(1));
+        if (i === -1) continue;
+        const data = l.slice(i + 2);
+        for (let k = 2; k + 4 <= data.length; k += 4) {
+          const dtc = decodeDTC(data.substr(k,2), data.substr(k+2,2));
+          if (dtc) codes.push(dtc + tag);
+        }
+      }
+    } catch {}
+  }
+  return codes;
+}
+
+/* ============================================================
+   Опрос
+   ============================================================ */
+async function pollLoop() {
+  if (!polling || !elm.tx) return;
+  for (const pid of Object.keys(PID_HANDLERS)) {
+    if (!supportedPids.has(parseInt(pid, 16))) continue;
+    try {
+      const d = await query(pid);
+      if (d == null) continue;
+      const v = PID_HANDLERS[pid](d);
+      const key = PID_MAP[pid];
+      current[key] = v;
+      const el = $('v_' + key);
+      if (el) el.textContent = v;
+      const card = document.querySelector(`.card[data-key="${key}"]`);
+      if (card) {
+        if (key === 'coolant') applyCoolantAlert(card, v);
+        if (key === 'batt')    applyBatteryAlert(card, v);
+      }
+    } catch {}
+  }
+  pushChartSample();
+  if (logActive) logSample();
+  if (polling) setTimeout(pollLoop, 120);
+}
+
+/* ============================================================
+   Профиль: чип в шапке
+   ============================================================ */
+function updateProfileChip() {
+  const el = $('profileChip');
+  if (!el) return;
+  const p = Profiles.active();
+  if (!p) {
+    el.innerHTML = `<span style="color:#888">🚗 Профиль не выбран</span>
+      <button class="ghost" onclick="location.href='to.html'">📋 Профили</button>`;
+    return;
+  }
+  const vinLine = p.vin ? `<span class="vin">VIN ${escapeHtml(p.vin)}</span>` : '';
+  const plate = p.plate ? `<span class="vin">${escapeHtml(p.plate)}</span>` : '';
+  el.innerHTML = `
+    <span>🚗 <span class="pname">${escapeHtml(Profiles.label(p))}</span></span>
+    ${vinLine}${plate}
+    <button class="ghost" onclick="location.href='to.html'">📋 Журнал ТО</button>
+  `;
+}
+
+/* ============================================================
+   Профиль по VIN: найти / создать
+   ============================================================ */
+async function ensureProfileForVehicle(vin) {
+  if (vin) {
+    const existing = Profiles.findByVin(vin);
+    if (existing) {
+      Profiles.setActive(existing.id);
+      updateProfileChip();
+      return existing;
+    }
+    const name = prompt(
+      `🚗 Обнаружен новый автомобиль.\n\nVIN: ${vin}\n\n` +
+      `Название профиля (например, "Мой Logan", "Логан жены"):`,
+      'Logan ' + vin.slice(-4)
+    );
+    if (name === null) return null;
+    if (!name.trim()) return null;
+    const plate = prompt('Гос. номер (можно пропустить):', '');
+    const profile = Profiles.create({
+      vin, name: name.trim(),
+      plate: (plate || '').trim() || null
+    });
+    Profiles.setActive(profile.id);
+    updateProfileChip();
+    alert(`Профиль «${Profiles.label(profile)}» создан.\n\nДанные ТО и пробег будут сохраняться отдельно для этого авто.`);
+    return profile;
+  }
+
+  const active = Profiles.active();
+  if (active) return active;
+
+  const name = prompt(
+    'VIN не определился (частая ситуация на Logan I).\n\n' +
+    'Создайте профиль вручную, чтобы не путать с другими авто.\n\n' +
+    'Название профиля:',
+    'Мой Logan'
+  );
+  if (name === null || !name.trim()) return null;
+  const plate = prompt('Гос. номер (можно пропустить):', '');
+  const profile = Profiles.create({
+    name: name.trim(),
+    plate: (plate || '').trim() || null
+  });
+  Profiles.setActive(profile.id);
+  updateProfileChip();
+  alert(`Профиль «${Profiles.label(profile)}» создан.`);
+  return profile;
+}
+
+/* ============================================================
+   Подключение / отключение
+   ============================================================ */
+async function afterConnect() {
+  setStatus('Подключено: ' + (elm.device.name || 'ELM327') + ' · определение PID…', 'ok');
+  $('btnDtc').disabled = false;
+  $('btnClear').disabled = false;
+  $('btnStartLog').disabled = false;
+  $('btnMileage').disabled = false;
+  ensureAudio();
+
+  const vin = await readVIN();
+  $('vin').textContent = vin || '—';
+
+  await ensureProfileForVehicle(vin);
+
+  supportedPids = await detectSupportedPids();
+  $('supportedCount').textContent = supportedPids.size + ' шт.';
+  for (const [pid] of Object.entries(PID_MAP)) {
+    const card = document.querySelector(`.card[data-pid="${pid}"]`);
+    if (card && !supportedPids.has(parseInt(pid, 16))) card.classList.add('unsupported');
+  }
+
+  $('mileage').textContent = '…';
+  const km = await readMileage();
+  $('mileage').textContent = km ? km.toLocaleString('ru-RU') + ' км' : 'недоступно';
+
+  const p = Profiles.active();
+  setStatus('Готово · ' + (p ? Profiles.label(p) : 'без профиля'), 'ok');
+  polling = true;
+  pollLoop();
+}
+
+function onDisconnect() {
+  polling = false;
+  if (logActive && settings.autosave) serializeLog();
+  logActive = false;
+  $('btnConnect').disabled = false;
+  $('btnReconnect').disabled = false;
+  $('btnDtc').disabled = true;
+  $('btnClear').disabled = true;
+  $('btnStartLog').disabled = true;
+  $('btnStopLog').disabled = true;
+  $('btnMileage').disabled = true;
+}
+
+/* ============================================================
+   UI
+   ============================================================ */
+$('btnConnect').addEventListener('click', async () => {
+  $('btnConnect').disabled = true;
+  try {
+    setStatus('Запрос устройства…');
+    await elm.connect();
+    await afterConnect();
+  } catch (e) {
+    console.error(e);
+    setStatus('Ошибка: ' + e.message, 'err');
+    $('btnConnect').disabled = false;
+  }
+});
+
+$('btnReconnect').addEventListener('click', async () => {
+  try {
+    const devices = await navigator.bluetooth.getDevices();
+    if (!devices.length) { setStatus('Нет сохранённых устройств', 'err'); return; }
+    const device = devices[devices.length - 1];
+    $('btnReconnect').disabled = true;
+    setStatus('Переподключение к ' + (device.name || 'устройству') + '…');
+    await elm.connectTo(device);
+    await afterConnect();
+  } catch (e) {
+    setStatus('Ошибка: ' + e.message, 'err');
+    $('btnReconnect').disabled = false;
+  }
+});
+
+$('btnMileage').addEventListener('click', async () => {
+  $('btnMileage').disabled = true;
+  const wasPolling = polling;
+  polling = false;
+  $('mileage').textContent = '…';
+  try {
+    const km = await readMileage();
+    $('mileage').textContent = km ? km.toLocaleString('ru-RU') + ' км' : 'недоступно';
+  } catch { $('mileage').textContent = 'недоступно'; }
+  polling = wasPolling;
+  $('btnMileage').disabled = false;
+  if (polling) pollLoop();
+});
+
+$('btnOpenTO').addEventListener('click', () => { window.location.href = 'to.html'; });
+
+(async () => {
+  try {
+    if (navigator.bluetooth?.getDevices) {
+      const d = await navigator.bluetooth.getDevices();
+      if (d.length) $('btnReconnect').disabled = false;
+    }
+  } catch {}
+  updateProfileChip();
+})();
+
+$('btnStartLog').addEventListener('click', startLog);
+$('btnStopLog').addEventListener('click', stopLog);
+$('btnDownload').addEventListener('click', downloadCSV);
+
+$('btnDtc').addEventListener('click', async () => {
+  $('btnDtc').disabled = true;
+  $('dtcs').textContent = 'Чтение…';
+  try {
+    const codes = await readDTCs();
+    $('dtcs').innerHTML = codes.length
+      ? codes.map(c => `<span class="err">${c}</span>`).join('\n')
+      : '<span class="ok">Ошибок нет</span>';
+  } catch (e) {
+    $('dtcs').textContent = 'Ошибка чтения: ' + e.message;
+  }
+  $('btnDtc').disabled = false;
+});
+
+$('btnClear').addEventListener('click', async () => {
+  if (!confirm('Стереть коды ошибок и сбросить Check Engine?')) return;
+  try {
+    await elm.send('04', 4000);
+    $('dtcs').innerHTML = '<span class="ok">Коды стёрты</span>';
+  } catch (e) {
+    $('dtcs').textContent = 'Ошибка: ' + e.message;
+  }
+});
+
+window.addEventListener('beforeunload', () => {
+  if (logActive && settings.autosave) serializeLog();
+});
+</script>
+</body>
+</html>
