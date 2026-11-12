@@ -28,7 +28,7 @@
 
 Приложение работает по HTTPS (требование Web Bluetooth):
 
-👉 **https://ВАШ_ЛОГИН.github.io/renault-obd/**
+👉 **https://sergjajx.github.io/Testobd/**
 
 Локально:
 ```bash
